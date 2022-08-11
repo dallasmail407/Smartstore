@@ -1,11 +1,12 @@
-name: Publish nightly dev Docker image
+name: Publish release Docker image
 
 on:
   # Manual trigger
   workflow_dispatch:
-  # At 06:00 AM, on Tuesday, Thursday, and Saturday
-  schedule:
-  - cron: "0 6 * * TUE,THU,SAT"
+    inputs:
+      version:
+        description: 'Version, e.g. 5.0.0'
+        required: true
   
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -13,8 +14,8 @@ env:
 
 jobs:
 
-  publish-nightly:
-    name: Build, Test, Publish and Deploy nightly Docker image
+  publish-release:
+    name: Build, Publish and Deploy stable release Docker image
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -35,13 +36,10 @@ jobs:
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: 6.0.x
-        include-prerelease: true
+        include-prerelease: false
 
     - name: Build
       run: dotnet build Smartstore.sln -c Release
-
-    - name: Test
-      run: dotnet test Smartstore.sln -c Release --no-restore --no-build
     
     - name: Log in to the GitHub Container registry
       uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
@@ -49,27 +47,19 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
-    #- name: Log in to Docker Hub
-    #  uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
-    #  with:
-    #    username: ${{ secrets.DOCKER_USERNAME }}
-    #    password: ${{ secrets.DOCKER_PASSWORD }}
         
     - name: Publish and Push for Linux
       if: matrix.os == 'ubuntu-latest'
       run: | 
         dotnet publish src/Smartstore.Web/Smartstore.Web.csproj -c Release -o ./.build/release --no-restore --no-build --no-self-contained
-        docker build --build-arg SOURCE=./.build/release -f NoBuild.Dockerfile -t ghcr.io/smartstore/smartstore-linux:nightly .
-        docker push ghcr.io/smartstore/smartstore-linux:nightly
-        #docker build --build-arg VERSION=nightly -f NoBuild.Dockerfile -t smartstore/smartstore-linux:nightly .
-        #docker push smartstore/smartstore-linux:nightly
+        docker build --build-arg SOURCE=./.build/release -f NoBuild.Dockerfile -t ghcr.io/smartstore/smartstore-linux:latest -t ghcr.io/smartstore/smartstore-linux:${{ github.event.inputs.version }} .
+        docker push ghcr.io/smartstore/smartstore-linux:latest
+        docker push ghcr.io/smartstore/smartstore-linux:${{ github.event.inputs.version }}
 
     - name: Publish and Push for Windows
       if: matrix.os == 'windows-latest'
       run: | 
         dotnet publish src/Smartstore.Web/Smartstore.Web.csproj -c Release -o ./.build/release --no-restore --no-build --no-self-contained
-        docker build --build-arg SOURCE=./.build/release -f Nano.Dockerfile -t ghcr.io/smartstore/smartstore-windows:nightly .
-        docker push ghcr.io/smartstore/smartstore-windows:nightly
-        #docker build --build-arg VERSION=nightly -f NoBuild.Dockerfile -t smartstore/smartstore-windows:nightly .
-        #docker push smartstore/smartstore-windows:nightly
+        docker build --build-arg SOURCE=./.build/release -f Nano.Dockerfile -t ghcr.io/smartstore/smartstore-windows:latest -t ghcr.io/smartstore/smartstore-windows:${{ github.event.inputs.version }} .
+        docker push ghcr.io/smartstore/smartstore-windows:latest
+        docker push ghcr.io/smartstore/smartstore-windows:${{ github.event.inputs.version }}
