@@ -40,4 +40,4 @@ RUN apt update &&\
 	apt -y install ./wkhtmltox_0.12.6-1.buster_amd64.deb &&\
 	rm ./wkhtmltox_0.12.6-1.buster_amd64.deb
 
-ENTRYPOINT ["./Smartstore.Web", "--urls", "http://0.0.0.0:80"]
+ENTRYPOINT ["./Smartstore.Web", "--urls", "http://localhost:80"]
